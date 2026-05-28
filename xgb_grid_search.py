@@ -10,7 +10,6 @@ from sklearn.metrics import (
 )
 from sklearn.utils.class_weight import compute_sample_weight
 from xgboost import XGBClassifier
-import matplotlib.pyplot as plt
 from xgboost import plot_importance
 import pandas as pd
 import numpy as np
