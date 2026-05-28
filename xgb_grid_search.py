@@ -7,13 +7,14 @@ from sklearn.metrics import (
     f1_score,
     roc_auc_score,
     average_precision_score,
+    log_loss,
 )
 from sklearn.utils.class_weight import compute_sample_weight
 from xgboost import XGBClassifier
 from xgboost import plot_importance
 import pandas as pd
 import numpy as np
-
+import gc
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -40,10 +41,34 @@ needed_cols = [
     target,
 ] + BASE_FEATURES
 
-
-dfs = []
+all_mmsis = set()
 
 for f in files:
+    m = pd.read_parquet(
+        f,
+        columns=["mmsi"],
+        engine="pyarrow"
+    )["mmsi"].dropna().unique()
+
+    all_mmsis.update(m)
+
+mmsis = np.array(list(all_mmsis))
+
+rng = np.random.default_rng(42)
+rng.shuffle(mmsis)
+
+n = len(mmsis)
+
+train_mmsi = set(mmsis[: int(0.70 * n)])
+val_mmsi   = set(mmsis[int(0.70 * n): int(0.85 * n)])
+test_mmsi  = set(mmsis[int(0.85 * n):])
+
+train_parts = []
+val_parts = []
+test_parts = []
+
+for f in files:
+
     print("Reading", f)
 
     tmp = pd.read_parquet(
@@ -52,38 +77,38 @@ for f in files:
         engine="pyarrow"
     )
 
-    # Keep only fishing / confident no-fishing
     tmp = tmp[tmp["sample_weight"] != 0].copy()
 
     tmp["date_time_utc"] = pd.to_datetime(tmp["date_time_utc"])
+
     month = tmp["date_time_utc"].dt.month
 
     tmp["month_sin"] = np.sin(2 * np.pi * month / 12)
     tmp["month_cos"] = np.cos(2 * np.pi * month / 12)
 
-    dfs.append(tmp)
+    tmp[BASE_FEATURES] = tmp[BASE_FEATURES].astype(np.float32)
+    tmp["month_sin"] = tmp["month_sin"].astype(np.float32)
+    tmp["month_cos"] = tmp["month_cos"].astype(np.float32)
+    tmp[target] = tmp[target].astype(np.int8)
 
+    train_parts.append(
+        tmp[tmp["mmsi"].isin(train_mmsi)].copy()
+    )
 
-df = pd.concat(dfs, ignore_index=True)
+    val_parts.append(
+        tmp[tmp["mmsi"].isin(val_mmsi)].copy()
+    )
 
-print("Total rows:", len(df))
-print("Unique vessels:", df["mmsi"].nunique())
-print(df[target].value_counts())
+    test_parts.append(
+        tmp[tmp["mmsi"].isin(test_mmsi)].copy()
+    )
 
-# Split into train test and validation set by mmsi so that no vessel appear in both.
-rng = np.random.default_rng(42)
-mmsis = df["mmsi"].unique().copy()
-rng.shuffle(mmsis)
-n = len(mmsis)
-train_mmsi = set(mmsis[: int(0.70 * n)])
-val_mmsi   = set(mmsis[int(0.70 * n) : int(0.85 * n)])
-test_mmsi  = set(mmsis[int(0.85 * n) :])
+    del tmp
+    gc.collect()
 
-
-train_df = df[df["mmsi"].isin(train_mmsi)]
-val_df = df[df["mmsi"].isin(val_mmsi)]
-test_df = df[df["mmsi"].isin(test_mmsi)]
-
+train_df = pd.concat(train_parts, ignore_index=True)
+val_df   = pd.concat(val_parts, ignore_index=True)
+test_df  = pd.concat(test_parts, ignore_index=True)
 
 train_df = train_df.dropna(subset=[target]).copy()
 val_df   = val_df.dropna(subset=[target]).copy()
@@ -116,14 +141,13 @@ xgb = XGBClassifier(
 # Parameter grid
 # -----------------------
 cv_params = {
-    "max_depth":        [4, 6, 8],
-    "min_child_weight": [1, 3, 5],
-    "learning_rate":    [0.05, 0.1, 0.2],
-    "n_estimators":     [200, 400, 600],
-    "subsample":        [0.8],
+    "max_depth": [4, 6],
+    "min_child_weight": [3],
+    "learning_rate": [0.05, 0.1],
+    "n_estimators": [300],
+    "subsample": [0.8],
     "colsample_bytree": [0.8],
 }
-
 
 # -----------------------
 # Grouped cross-validation
@@ -181,6 +205,7 @@ print(f"\nBest CV F1: {xgb_cv.best_score_:.4f}")
 # Evaluate on validation set
 # -----------------------
 best_model = xgb_cv.best_estimator_
+best_model.save_model("models/xgb_model_2024.json")
 
 val_proba = best_model.predict_proba(X_val)[:, 1]
 val_pred = (val_proba >= 0.5).astype(int)
