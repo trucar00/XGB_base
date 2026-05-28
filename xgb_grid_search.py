@@ -22,8 +22,6 @@ import numpy as np
 files = [
     "../../LSTM/three_months/feats_all_gear2/2024_1_3_feats.parquet",
     "../../LSTM/three_months/feats_all_gear2/2024_4_6_feats.parquet",
-    "../../LSTM/three_months/feats_all_gear2/2024_7_9_feats.parquet",
-    "../../LSTM/three_months/feats_all_gear2/2024_10_12_feats.parquet",
 ]
 
 BASE_FEATURES = [
