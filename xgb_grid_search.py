@@ -15,14 +15,61 @@ from xgboost import plot_importance
 import pandas as pd
 import numpy as np
 
+from pathlib import Path
+import pandas as pd
+import numpy as np
 
-df = pd.read_parquet("data/2024_1_3_feats.parquet", engine="pyarrow")
-df = df[df["sample_weight"] != 0].copy()
-df["date_time_utc"] = pd.to_datetime(df["date_time_utc"])
-month = df["date_time_utc"].dt.month
+files = [
+    "../../LSTM/three_months/feats_all_gear2/2024_1_3_feats.parquet",
+    "../../LSTM/three_months/feats_all_gear2/2024_4_6_feats.parquet",
+    "../../LSTM/three_months/feats_all_gear2/2024_7_9_feats.parquet",
+    "../../LSTM/three_months/feats_all_gear2/2024_10_12_feats.parquet",
+]
 
-df["month_sin"] = np.sin(2 * np.pi * month / 12)
-df["month_cos"] = np.cos(2 * np.pi * month / 12)
+BASE_FEATURES = [
+    "cog_sin", "cog_cos", "speed_calc_ms", "ra_accel", "ra_jerk",
+    "log_dist", "ra_dcog", "log_dt", "dist_to_shore_km"
+]
+SEASON_FEATURES = ["month_sin", "month_cos"]
+FEATURES = BASE_FEATURES + SEASON_FEATURES
+target = "y_train"
+
+needed_cols = [
+    "mmsi",
+    "date_time_utc",
+    "sample_weight",
+    target,
+] + BASE_FEATURES
+
+
+dfs = []
+
+for f in files:
+    print("Reading", f)
+
+    tmp = pd.read_parquet(
+        f,
+        columns=needed_cols,
+        engine="pyarrow"
+    )
+
+    # Keep only fishing / confident no-fishing
+    tmp = tmp[tmp["sample_weight"] != 0].copy()
+
+    tmp["date_time_utc"] = pd.to_datetime(tmp["date_time_utc"])
+    month = tmp["date_time_utc"].dt.month
+
+    tmp["month_sin"] = np.sin(2 * np.pi * month / 12)
+    tmp["month_cos"] = np.cos(2 * np.pi * month / 12)
+
+    dfs.append(tmp)
+
+
+df = pd.concat(dfs, ignore_index=True)
+
+print("Total rows:", len(df))
+print("Unique vessels:", df["mmsi"].nunique())
+print(df[target].value_counts())
 
 # Split into train test and validation set by mmsi so that no vessel appear in both.
 rng = np.random.default_rng(42)
@@ -38,11 +85,6 @@ train_df = df[df["mmsi"].isin(train_mmsi)]
 val_df = df[df["mmsi"].isin(val_mmsi)]
 test_df = df[df["mmsi"].isin(test_mmsi)]
 
-
-BASE_FEATURES = ["cog_sin", "cog_cos", "speed_calc_ms", "ra_accel", "ra_jerk", "log_dist", "ra_dcog", "log_dt", "dist_to_shore_km"]
-SEASON_FEATURES = ["month_sin", "month_cos"]
-FEATURES = BASE_FEATURES + SEASON_FEATURES
-target = "y_train"
 
 train_df = train_df.dropna(subset=[target]).copy()
 val_df   = val_df.dropna(subset=[target]).copy()
@@ -129,11 +171,12 @@ xgb_cv.fit(
     sample_weight=sample_weight_train,
 )
 
+
+
 print("Best params:")
 print(xgb_cv.best_params_)
 
 print(f"\nBest CV F1: {xgb_cv.best_score_:.4f}")
-
 
 # -----------------------
 # Evaluate on validation set
@@ -164,6 +207,9 @@ print(classification_report(y_test, test_pred, digits=3))
 print("ROC AUC:", roc_auc_score(y_test, test_proba))
 print("PR AUC:", average_precision_score(y_test, test_proba))
 
+
+print("Validation log loss:", log_loss(y_val, val_proba))
+print("Test log loss:", log_loss(y_test, test_proba))
 
 # -----------------------
 # Feature importance
