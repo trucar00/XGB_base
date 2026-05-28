@@ -11,7 +11,7 @@
 #SBATCH --mail-type=ALL
 
 # Go to submission folder
-cd ~/MODELS/LSTM
+cd ~/MODELS/XGB/XGB_base
 
 # Load Python
 module purge
