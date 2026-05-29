@@ -7,7 +7,7 @@ import numpy as np
 # Load model
 # -----------------------
 model = XGBClassifier()
-model.load_model("models/.json")
+model.load_model("models/xgb_model_2024.json")
 
 # -----------------------
 # Load metadata

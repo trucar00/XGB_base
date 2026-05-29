@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --account=share-ie-idi
+#SBATCH --account=share-ie-itk
 #SBATCH --partition=CPUQ
 ##SBATCH --gres=gpu:1
 #SBATCH --time=2:00:00
