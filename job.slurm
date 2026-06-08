@@ -2,11 +2,11 @@
 #SBATCH --account=share-ie-itk
 #SBATCH --partition=CPUQ
 ##SBATCH --gres=gpu:1
-#SBATCH --time=2:00:00
+#SBATCH --time=3:00:00
 #SBATCH --nodes=1             # 1 compute nodes
 #SBATCH --cpus-per-task=8     # 2 CPU cores
 #SBATCH --mem=128G             # GB memory
-#SBATCH --output=output_xgb_gridsearch_%j.txt    # Log file
+#SBATCH --output=output_xgb_gridsearch_on_2024-1-3-7-9_train_2024-1-3%j.txt    # Log file
 #SBATCH --mail-user=trulsc00@gmail.com
 #SBATCH --mail-type=ALL
 
@@ -36,4 +36,4 @@ EOF
 nvidia-smi
 
 # Run your script
-python -u xgb_grid_search.py
+python -u xgb_train_on_2024_1-6.py

@@ -18,6 +18,7 @@ import gc
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import json
 
 files = [
     "../../LSTM/three_months/feats_all_gear2/2024_1_3_feats.parquet",
@@ -193,55 +194,123 @@ xgb_cv.fit(
 )
 
 
-
+best_params = xgb_cv.best_params_
 print("Best params:")
-print(xgb_cv.best_params_)
+print(best_params)
 
 print(f"\nBest CV F1: {xgb_cv.best_score_:.4f}")
 
-# -----------------------
-# Evaluate on validation set
-# -----------------------
-best_model = xgb_cv.best_estimator_
-best_model.save_model("models/xgb_model_2024.json")
-
-val_proba = best_model.predict_proba(X_val)[:, 1]
-val_pred = (val_proba >= 0.5).astype(int)
-
-print("\nValidation results")
-print(confusion_matrix(y_val, val_pred))
-print(classification_report(y_val, val_pred, digits=3))
-
-print("ROC AUC:", roc_auc_score(y_val, val_proba))
-print("PR AUC:", average_precision_score(y_val, val_proba))
+with open("models/xgb_best_params.json", "w") as f:
+    json.dump(best_params, f, indent=2)
 
 
-# -----------------------
-# Evaluate on test set
-# -----------------------
-test_proba = best_model.predict_proba(X_test)[:, 1]
-test_pred = (test_proba >= 0.5).astype(int)
+# REFIT
+refit_files = [
+    "../../LSTM/three_months/feats_all_gear2/2024_1_3_feats.parquet",
+    "../../LSTM/three_months/feats_all_gear2/2024_4_6_feats.parquet",
+]
 
-print("\nTest results")
-print(confusion_matrix(y_test, test_pred))
-print(classification_report(y_test, test_pred, digits=3))
+all_refit_mmsis = set()
 
-print("ROC AUC:", roc_auc_score(y_test, test_proba))
-print("PR AUC:", average_precision_score(y_test, test_proba))
+for f in refit_files:
+    m = pd.read_parquet(
+        f,
+        columns=["mmsi"],
+        engine="pyarrow"
+    )["mmsi"].dropna().unique()
 
+    all_refit_mmsis.update(m)
 
-print("Validation log loss:", log_loss(y_val, val_proba))
-print("Test log loss:", log_loss(y_test, test_proba))
+refit_mmsis = np.array(list(all_refit_mmsis))
 
-# -----------------------
-# Feature importance
-# -----------------------
-""" fig, ax = plt.subplots(figsize=(8, 6))
-plot_importance(
-    best_model,
-    importance_type="gain",
-    max_num_features=20,
-    ax=ax,
+rng = np.random.default_rng(42)
+rng.shuffle(refit_mmsis)
+
+n = len(refit_mmsis)
+
+train_mmsi_r = set(refit_mmsis[: int(0.70 * n)])
+val_mmsi_r   = set(refit_mmsis[int(0.70 * n): int(0.85 * n)])
+test_mmsi_r  = set(refit_mmsis[int(0.85 * n):])
+
+train_parts_r = []
+val_parts_r = []
+test_parts_r = []
+
+for f in refit_files:
+
+    print("Reading", f)
+
+    tmp = pd.read_parquet(
+        f,
+        columns=needed_cols,
+        engine="pyarrow"
+    )
+
+    tmp = tmp[tmp["sample_weight"] != 0].copy()
+
+    tmp["date_time_utc"] = pd.to_datetime(tmp["date_time_utc"])
+
+    month = tmp["date_time_utc"].dt.month
+
+    tmp["month_sin"] = np.sin(2 * np.pi * month / 12)
+    tmp["month_cos"] = np.cos(2 * np.pi * month / 12)
+
+    tmp[BASE_FEATURES] = tmp[BASE_FEATURES].astype(np.float32)
+    tmp["month_sin"] = tmp["month_sin"].astype(np.float32)
+    tmp["month_cos"] = tmp["month_cos"].astype(np.float32)
+    tmp[target] = tmp[target].astype(np.int8)
+
+    train_parts_r.append(
+        tmp[tmp["mmsi"].isin(train_mmsi_r)].copy()
+    )
+
+    val_parts_r.append(
+        tmp[tmp["mmsi"].isin(val_mmsi_r)].copy()
+    )
+
+    test_parts_r.append(
+        tmp[tmp["mmsi"].isin(test_mmsi_r)].copy()
+    )
+
+    del tmp
+    gc.collect()
+
+train_df_r = pd.concat(train_parts_r, ignore_index=True)
+val_df_r   = pd.concat(val_parts_r, ignore_index=True)
+test_df_r  = pd.concat(test_parts_r, ignore_index=True)
+
+train_df_r = train_df_r.dropna(subset=[target]).copy()
+val_df_r   = val_df_r.dropna(subset=[target]).copy()
+test_df_r  = test_df_r.dropna(subset=[target]).copy()
+
+X_train_r = train_df_r[FEATURES]
+y_train_r = train_df_r[target].astype(int)
+groups_train_r = train_df_r["mmsi"].values
+
+X_val_r = val_df_r[FEATURES]
+y_val_r = val_df_r[target].astype(int)
+
+X_test_r = test_df_r[FEATURES]
+y_test_r = test_df_r[target].astype(int)
+
+final_xgb = XGBClassifier(
+    objective="binary:logistic",
+    eval_metric="logloss",
+    tree_method="hist",
+    random_state=42,
+    n_jobs=-1,
+    **best_params,
 )
-plt.tight_layout()
-plt.show() """
+
+sample_weight_train_r = compute_sample_weight(
+    class_weight="balanced",
+    y=y_train_r,
+)
+
+final_xgb.fit(
+    X_train_r,
+    y_train_r,
+    sample_weight=sample_weight_train_r,
+)
+
+final_xgb.save_model("models/xgb_tuned_2024_1_6.json")
