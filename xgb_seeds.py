@@ -97,6 +97,11 @@ y_test_r  = test_df_r[target].astype(int)
 # Sample weights are deterministic given y_train_r — compute once.
 sample_weight_train_r = compute_sample_weight(class_weight="balanced", y=y_train_r)
 
+neg_train = int((y_train_r == 0).sum())
+pos_train = int((y_train_r == 1).sum())
+pos_weight_value = neg_train / max(pos_train, 1)
+print(f"pos_weight (for LSTM-comparable ext_logloss): {pos_weight_value:.4f}")
+
 # ============================================================
 # Pre-load 2025 external test set ONCE
 # ============================================================
@@ -112,11 +117,25 @@ df_2025["month_cos"] = np.cos(2 * np.pi * _m / 12)
 # External-prediction + report-based scoring
 # ============================================================
 
-def predict_and_score_external(model, df_in, threshold=THRESHOLD):
+def predict_and_score_external(model, df_in, threshold=THRESHOLD, pos_weight_value=1.0):
     df = df_in.copy()
     proba = model.predict_proba(df[FEATURES])[:, 1]
     df["pred_proba"] = proba
     df["pred_fishing"] = (proba >= threshold).astype(int)
+
+    # ----- Pos-weighted BCE on labeled rows (matches LSTM ext_loss) -----
+    labeled = df[df["sample_weight"] != 0]
+    if len(labeled) > 0:
+        y_true = labeled["y_train"].astype(int).to_numpy()
+        p = np.clip(labeled["pred_proba"].to_numpy(), 1e-7, 1.0 - 1e-7)
+        w = np.where(y_true == 1, pos_weight_value, 1.0)
+        per_sample = -(w * (y_true * np.log(p) + (1.0 - y_true) * np.log(1.0 - p)))
+        ext_logloss      = float(per_sample.mean())
+        ext_logloss_unw  = float(log_loss(y_true, p))   # plain sklearn, for reference
+        ext_n_labeled    = int(len(labeled))
+    else:
+        ext_logloss = ext_logloss_unw = float("nan")
+        ext_n_labeled = 0
 
     pred_pos_df = df[df["pred_fishing"] == 1]
     tp = int((pred_pos_df["report"] == "fishing").sum())
@@ -144,6 +163,9 @@ def predict_and_score_external(model, df_in, threshold=THRESHOLD):
     n_pred_no_fish_of_unknown   = int((unknown_df["pred_fishing"] == 0).sum())
 
     return {
+        "ext_logloss":        ext_logloss,         # pos-weighted, matches LSTM ext_loss
+        "ext_logloss_unw":    ext_logloss_unw,     # plain BCE, for reference
+        "ext_n_labeled":      ext_n_labeled,
         "ext_tp":                        tp,
         "ext_fp":                        fp,
         "ext_tn":                        tn,
@@ -216,8 +238,9 @@ for seed in SEEDS:
           f"logloss {int_logloss:.4f}")
 
     # ----- External 2025 test -----
-    ext = predict_and_score_external(final_xgb, df_2025)
+    ext = predict_and_score_external(final_xgb, df_2025, pos_weight_value=pos_weight_value)
     print(f"[seed {seed}] EXTERNAL 2025 | "
+          f"logloss {ext['ext_logloss']:.4f} "
           f"precision {ext['ext_precision']:.3f} "
           f"recall {ext['ext_recall']:.3f} "
           f"specificity {ext['ext_specificity']:.3f} "
@@ -251,7 +274,7 @@ print(df_res.to_string(index=False))
 
 metric_cols = [
     "int_f1", "int_precision", "int_recall", "int_accuracy", "int_logloss",
-    "ext_f1", "ext_precision", "ext_recall", "ext_accuracy", "ext_specificity",
+    "ext_logloss", "ext_f1", "ext_precision", "ext_recall", "ext_accuracy", "ext_specificity",
 ]
 summary = df_res[metric_cols].agg(["mean", "std"]).T
 summary.columns = ["mean", "std"]
