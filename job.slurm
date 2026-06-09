@@ -6,7 +6,7 @@
 #SBATCH --nodes=1             # 1 compute nodes
 #SBATCH --cpus-per-task=8     # 2 CPU cores
 #SBATCH --mem=128G             # GB memory
-#SBATCH --output=output_xgb_gridsearch_on_2024-1-3-7-9_train_2024-1-6%j.txt    # Log file
+#SBATCH --output=output_xgb_gridsearch_on_2024_1-3-7-9_train_2024_1-6_%j.txt    # Log file
 #SBATCH --mail-user=trulsc00@gmail.com
 #SBATCH --mail-type=ALL
 
