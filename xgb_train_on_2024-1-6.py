@@ -21,8 +21,8 @@ import numpy as np
 import json
 
 files = [
-    "../../LSTM/three_months/feats_all_gear2/2024_1_3_feats.parquet",
-    "../../LSTM/three_months/feats_all_gear2/2024_7_9_feats.parquet",
+    "../../LSTM/three_months/feats_all_w_traps/2024_1_3_feats.parquet",
+    "../../LSTM/three_months/feats_all_w_traps/2024_7_9_feats.parquet",
 ]
 
 BASE_FEATURES = [
@@ -206,8 +206,8 @@ with open("models/xgb_best_params.json", "w") as f:
 
 # REFIT
 refit_files = [
-    "../../LSTM/three_months/feats_all_gear2/2024_1_3_feats.parquet",
-    "../../LSTM/three_months/feats_all_gear2/2024_4_6_feats.parquet",
+    "../../LSTM/three_months/feats_all_w_traps/2024_1_3_feats.parquet",
+    "../../LSTM/three_months/feats_all_w_traps/024_4_6_feats.parquet",
 ]
 
 all_refit_mmsis = set()
