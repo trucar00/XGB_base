@@ -314,3 +314,23 @@ final_xgb.fit(
 )
 
 final_xgb.save_model("models/xgb_tuned_2024_1_6.json")
+
+y_pred = final_xgb.predict(X_test_r)
+y_prob = final_xgb.predict_proba(X_test_r)[:, 1]
+
+print("\n===== FINAL TEST RESULTS =====")
+print(confusion_matrix(y_test_r, y_pred))
+
+print(classification_report(
+    y_test_r,
+    y_pred,
+    target_names=["not fishing", "fishing"],
+    digits=4,
+))
+
+print(f"Precision: {precision_score(y_test_r, y_pred):.4f}")
+print(f"Recall:    {recall_score(y_test_r, y_pred):.4f}")
+print(f"F1:        {f1_score(y_test_r, y_pred):.4f}")
+print(f"ROC AUC:   {roc_auc_score(y_test_r, y_prob):.4f}")
+print(f"PR AUC:    {average_precision_score(y_test_r, y_prob):.4f}")
+print(f"Log loss:  {log_loss(y_test_r, y_prob):.4f}")
