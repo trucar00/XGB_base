@@ -142,10 +142,10 @@ def predict_and_score_external(model, df_in, threshold=THRESHOLD, pos_weight_val
 
     pred_pos_df = df[df["pred_fishing"] == 1]
     tp = int((pred_pos_df["report"] == "fishing").sum())
-    fp = int((pred_pos_df["report"] == "conf_no_fishing").sum())
+    fp = int(pred_pos_df["report"].isin(["conf_no_fishing", "unknown"]).sum())
 
     pred_neg_df = df[df["pred_fishing"] == 0]
-    tn = int((pred_neg_df["report"] == "conf_no_fishing").sum())
+    tn = int(pred_neg_df["report"].isin(["conf_no_fishing", "unknown"]).sum())
     fn = int((pred_neg_df["report"] == "fishing").sum())
 
     precision   = tp / (tp + fp)               if (tp + fp) > 0 else 0.0
