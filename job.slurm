@@ -36,4 +36,4 @@ EOF
 nvidia-smi
 
 # Run your script
-python -u xgb_seeds.py
+python -u xgb_NO_CONF.py
