@@ -324,7 +324,7 @@ final_xgb.fit(
     sample_weight=sample_weight_train_r,
 )
 
-final_xgb.save_model("models/xgb_tuned_2024_1_6_no_ra_leak_NO_CONF.json")
+final_xgb.save_model("models/xgb_2024_1_6_no_ra_leak_NO_CONF.json")
 
 y_pred = final_xgb.predict(X_test_r)
 y_prob = final_xgb.predict_proba(X_test_r)[:, 1]
