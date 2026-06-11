@@ -114,6 +114,8 @@ _m = df_2025["date_time_utc"].dt.month
 df_2025["month_sin"] = np.sin(2 * np.pi * _m / 12)
 df_2025["month_cos"] = np.cos(2 * np.pi * _m / 12)
 
+df_2025["sample_weight"] = 1
+
 # ============================================================
 # External-prediction + report-based scoring
 # ============================================================
