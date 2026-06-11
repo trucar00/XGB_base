@@ -20,7 +20,7 @@ import pandas as pd
 import numpy as np
 import json
 
-model_path = Path(f"models/xgb_best_params_no_ra_leak_NO_CONF.json")
+model_path = Path(f"models/xgb_best_params_no_ra_leak.json")
 BASE_FEATURES = [
     "cog_sin", "cog_cos", "speed_calc_ms", "ra_accel", "ra_jerk",
     "log_dist", "ra_dcog", "log_dt", "dist_to_shore_km"
