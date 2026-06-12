@@ -24,7 +24,7 @@ from xgboost import XGBClassifier
 model_path = Path("models/xgb_best_params_no_ra_leak.json")
 BASE_FEATURES = [
     "cog_sin", "cog_cos", "speed_calc_ms", "ra_accel", "ra_jerk",
-    "log_dist", "ra_dcog", "log_dt", "dist_to_shore_km",
+    "log_dist", "ra_dcog", "log_dt",
 ]
 SEASON_FEATURES = ["month_sin", "month_cos"]
 FEATURES = BASE_FEATURES + SEASON_FEATURES
@@ -45,7 +45,7 @@ external_test_file = "../../LSTM/three_months/feats_all_w_traps_online/2025_1_3_
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 THRESHOLD = 0.5
 
-results_csv_path = "multi_seed_results/xgb_seed_results_no_ra_leak_NO_CONF.csv"
+results_csv_path = "multi_seed_results/xgb_seed_results_NO_CONF_NO_DIST.csv"
 
 # ============================================================
 # MMSI split — FIXED across seeds (rng=42), mirrors LSTM script
@@ -283,6 +283,6 @@ summary = df_res[metric_cols].agg(["mean", "std"]).T
 summary.columns = ["mean", "std"]
 print("\nMean / Std across seeds:")
 print(summary)
-summary.to_csv("multi_seed_results/xgb_seed_results_summary_no_ra_leak_NO_CONF.csv")
+summary.to_csv("multi_seed_results/xgb_seed_results_summary_NO_CONF_NO_DIST.csv")
 print(f"\nPer-seed rows: {results_csv_path}")
-print(f"Summary:       multi_seed_results/xgb_seed_results_summary_no_ra_leak_NO_CONF.csv")
+print(f"Summary:       multi_seed_results/xgb_seed_results_summary_NO_CONF_NO_DIST.csv")
