@@ -37,15 +37,15 @@ with open(model_path, "r") as f:
     best_params = json.load(f)
 
 train_files = [
-    "../../LSTM/three_months/feats_all_w_traps_online/2024_1_3_feats.parquet",
-    "../../LSTM/three_months/feats_all_w_traps_online/2024_4_6_feats.parquet",
+    "../../LSTM/three_months/feats_new_rule_online/2024_1_3_feats.parquet",
+    "../../LSTM/three_months/feats_new_rule_online/2024_4_6_feats.parquet",
 ]
-external_test_file = "../../LSTM/three_months/feats_all_w_traps_online/2025_1_3_feats.parquet"
+external_test_file = "../../LSTM/three_months/feats_new_rule_online/2025_1_3_feats.parquet"
 
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 THRESHOLD = 0.5
 
-results_csv_path = "multi_seed_results/xgb_seed_results_NO_CONF_NO_DIST.csv"
+results_csv_path = "multi_seed_results/xgb_seed_results_NO_CONF_NO_DIST_NEW_RULE.csv"
 
 # ============================================================
 # MMSI split — FIXED across seeds (rng=42), mirrors LSTM script
@@ -283,6 +283,6 @@ summary = df_res[metric_cols].agg(["mean", "std"]).T
 summary.columns = ["mean", "std"]
 print("\nMean / Std across seeds:")
 print(summary)
-summary.to_csv("multi_seed_results/xgb_seed_results_summary_NO_CONF_NO_DIST.csv")
+summary.to_csv("multi_seed_results/xgb_seed_results_summary_NO_CONF_NO_DIST_NEW_RULE.csv")
 print(f"\nPer-seed rows: {results_csv_path}")
-print(f"Summary:       multi_seed_results/xgb_seed_results_summary_NO_CONF_NO_DIST.csv")
+print(f"Summary:       multi_seed_results/xgb_seed_results_summary_NO_CONF_NO_DIST_NEW_RULE.csv")
