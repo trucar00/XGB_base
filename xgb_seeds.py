@@ -24,7 +24,7 @@ from xgboost import XGBClassifier
 model_path = Path("models/xgb_best_params_no_ra_leak.json")
 BASE_FEATURES = [
     "cog_sin", "cog_cos", "speed_calc_ms", "ra_accel", "ra_jerk",
-    "log_dist", "ra_dcog", "log_dt", "dist_to_shore_km",
+    "log_dist", "ra_dcog", "log_dt",
 ]
 SEASON_FEATURES = ["month_sin", "month_cos"]
 FEATURES = BASE_FEATURES + SEASON_FEATURES
@@ -37,15 +37,15 @@ with open(model_path, "r") as f:
     best_params = json.load(f)
 
 train_files = [
-    "../../LSTM/three_months/feats_all_w_traps_online/2024_1_3_feats.parquet",
-    "../../LSTM/three_months/feats_all_w_traps_online/2024_4_6_feats.parquet",
+    "../../LSTM/three_months/feats_new_rule_online/2024_1_3_feats.parquet",
+    "../../LSTM/three_months/feats_new_rule_online/2024_4_6_feats.parquet",
 ]
-external_test_file = "../../LSTM/three_months/feats_all_w_traps_online/2025_1_3_feats.parquet"
+external_test_file = "../../LSTM/three_months/feats_new_rule_online/2025_1_3_feats.parquet"
 
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 THRESHOLD = 0.5
 
-results_csv_path = "multi_seed_results/xgb_seed_results_no_ra_leak.csv"
+results_csv_path = "multi_seed_results/xgb_seed_results_NEW_RULE_NO_DIST.csv"
 
 # ============================================================
 # MMSI split — FIXED across seeds (rng=42), mirrors LSTM script
@@ -218,7 +218,7 @@ for seed in SEEDS:
     )
 
     final_xgb.fit(X_train_r, y_train_r, sample_weight=sample_weight_train_r)
-    final_xgb.save_model(f"models/xgb_seed{seed}_no_ra_leak.json")
+    final_xgb.save_model(f"models/xgb_seed{seed}_NEW_RULE_NO_DIST.json")
 
     # ----- Internal 15% test split -----
     y_pred = final_xgb.predict(X_test_r)
@@ -280,6 +280,6 @@ summary = df_res[metric_cols].agg(["mean", "std"]).T
 summary.columns = ["mean", "std"]
 print("\nMean / Std across seeds:")
 print(summary)
-summary.to_csv("multi_seed_results/xgb_seed_results_summary_no_ra_leak.csv")
+summary.to_csv("multi_seed_results/xgb_seed_results_summary_NEW_RULE_NO_DIST.csv")
 print(f"\nPer-seed rows: {results_csv_path}")
-print(f"Summary:       multi_seed_results/xgb_seed_results_summary_no_ra_leak.csv")
+print(f"Summary:       multi_seed_results/xgb_seed_results_summary_NEW_RULE_NO_DIST.csv")
