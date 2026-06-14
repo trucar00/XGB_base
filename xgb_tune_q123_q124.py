@@ -5,8 +5,8 @@ import numpy as np
 from sklearn.utils.class_weight import compute_sample_weight
 import json
 
-TRAIN_FILES = ["three_months/feats_new_rule_online/2023_1_3_feats.parquet"]  # Q1 2024
-VAL_FILES   = ["three_months/feats_new_rule_online/2024_1_3_feats.parquet"]  # Q1 2024
+TRAIN_FILES = ["../../LSTM/three_months/feats_all_w_traps_online/2023_1_3_feats.parquet"]  # Q1 2024
+VAL_FILES   = ["../../LSTM/three_months/feats_all_w_traps_online/2024_1_3_feats.parquet"]  # Q1 2024
 
 BASE_FEATURES = ["cog_sin", "cog_cos", "speed_calc_ms", "ra_accel", "ra_jerk",
                  "log_dist", "ra_dcog", "log_dt"]
