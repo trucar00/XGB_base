@@ -22,13 +22,29 @@ from xgboost import XGBClassifier
 # ============================================================
 
 model_path = Path("models/xgb_best_params_no_ra_leak.json")
-BASE_FEATURES = [
-    "cog_sin", "cog_cos", "speed_calc_ms", "ra_accel", "ra_jerk",
-    "log_dist", "ra_dcog", "log_dt",
+# TRAIN: all of 2023
+BASE = "../../three_months/feats_new_rule_online"
+TRAIN_FILES = [
+    f"{BASE}/2023_1_3_feats.parquet",     # Q1 2023
+    f"{BASE}/2023_4_6_feats.parquet",     # Q2 2023
+    f"{BASE}/2023_7_9_feats.parquet",     # Q3 2023
+    f"{BASE}/2023_10_12_feats.parquet",   # Q4 2023
 ]
+
+# VALIDATION and TEST on 2024. We have MMSIS for validation and MMSIS for testing
+VAL_TEST_FILES = [
+    f"{BASE}/2024_1_3_feats.parquet",     # Q1 2024
+    f"{BASE}/2024_4_6_feats.parquet",     # Q2 2024
+    f"{BASE}/2024_7_9_feats.parquet",     # Q3 2024
+    f"{BASE}/2024_10_12_feats.parquet",   # Q4 2024
+]
+
+
+BASE_FEATURES = ["cog_sin", "cog_cos", "speed_calc_ms", "ra_accel", "ra_jerk", "log_dist", "ra_dcog", "log_dt"]
+
 SEASON_FEATURES = ["month_sin", "month_cos"]
+
 FEATURES = BASE_FEATURES + SEASON_FEATURES
-target = "y_train"
 
 needed_cols = ["mmsi", "date_time_utc", "sample_weight", target] + BASE_FEATURES
 
@@ -36,23 +52,17 @@ print("Loading best params...")
 with open(model_path, "r") as f:
     best_params = json.load(f)
 
-train_files = [
-    "../../LSTM/three_months/feats_new_rule_online/2024_1_3_feats.parquet",
-    "../../LSTM/three_months/feats_new_rule_online/2024_4_6_feats.parquet",
-]
-external_test_file = "../../LSTM/three_months/feats_new_rule_online/2025_1_3_feats.parquet"
-
-SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+SEEDS = [0, 1, 2, 3, 4]
 THRESHOLD = 0.5
 
-results_csv_path = "multi_seed_results/xgb_seed_results_NEW_RULE_NO_DIST.csv"
+results_csv_path = "multi_seed_results/xgb_seed_results_NO_CONF_NEW_SPLIT.csv"
 
 # ============================================================
 # MMSI split — FIXED across seeds (rng=42), mirrors LSTM script
 # ============================================================
 
 all_refit_mmsis = set()
-for f in train_files:
+for f in TRAIN_FILES:
     m = pd.read_parquet(f, columns=["mmsi"], engine="pyarrow")["mmsi"].dropna().unique()
     all_refit_mmsis.update(m)
 refit_mmsis = np.array(list(all_refit_mmsis))
@@ -71,7 +81,8 @@ train_parts_r, val_parts_r, test_parts_r = [], [], []
 for f in train_files:
     print("Reading", f)
     tmp = pd.read_parquet(f, columns=needed_cols, engine="pyarrow")
-    tmp = tmp[tmp["sample_weight"] != 0].copy()
+    tmp["sample_weight"] = 1
+    tmp = tmp[tmp["sample_weight"] == 1].copy()
     tmp["date_time_utc"] = pd.to_datetime(tmp["date_time_utc"])
     month = tmp["date_time_utc"].dt.month
     tmp["month_sin"] = np.sin(2 * np.pi * month / 12)
@@ -113,6 +124,8 @@ _m = df_2025["date_time_utc"].dt.month
 df_2025["month_sin"] = np.sin(2 * np.pi * _m / 12)
 df_2025["month_cos"] = np.cos(2 * np.pi * _m / 12)
 
+df_2025["sample_weight"] = 1
+
 # ============================================================
 # External-prediction + report-based scoring
 # ============================================================
@@ -139,10 +152,10 @@ def predict_and_score_external(model, df_in, threshold=THRESHOLD, pos_weight_val
 
     pred_pos_df = df[df["pred_fishing"] == 1]
     tp = int((pred_pos_df["report"] == "fishing").sum())
-    fp = int((pred_pos_df["report"] == "conf_no_fishing").sum())
+    fp = int(pred_pos_df["report"].isin(["conf_no_fishing", "unknown"]).sum())
 
     pred_neg_df = df[df["pred_fishing"] == 0]
-    tn = int((pred_neg_df["report"] == "conf_no_fishing").sum())
+    tn = int(pred_neg_df["report"].isin(["conf_no_fishing", "unknown"]).sum())
     fn = int((pred_neg_df["report"] == "fishing").sum())
 
     precision   = tp / (tp + fp)               if (tp + fp) > 0 else 0.0
@@ -218,7 +231,7 @@ for seed in SEEDS:
     )
 
     final_xgb.fit(X_train_r, y_train_r, sample_weight=sample_weight_train_r)
-    final_xgb.save_model(f"models/xgb_seed{seed}_NEW_RULE_NO_DIST.json")
+    #final_xgb.save_model(f"models/xgb_seed{seed}_no_ra_leak_NO_CONF.json")
 
     # ----- Internal 15% test split -----
     y_pred = final_xgb.predict(X_test_r)
@@ -280,6 +293,6 @@ summary = df_res[metric_cols].agg(["mean", "std"]).T
 summary.columns = ["mean", "std"]
 print("\nMean / Std across seeds:")
 print(summary)
-summary.to_csv("multi_seed_results/xgb_seed_results_summary_NEW_RULE_NO_DIST.csv")
+summary.to_csv("multi_seed_results/xgb_seed_results_summary_NO_CONF_NO_DIST_NEW_RULE.csv")
 print(f"\nPer-seed rows: {results_csv_path}")
-print(f"Summary:       multi_seed_results/xgb_seed_results_summary_NEW_RULE_NO_DIST.csv")
+print(f"Summary:       multi_seed_results/xgb_seed_results_summary_NO_CONF_NO_DIST_NEW_RULE.csv")

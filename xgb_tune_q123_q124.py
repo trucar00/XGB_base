@@ -4,6 +4,7 @@ from xgboost import XGBClassifier
 import numpy as np
 from sklearn.utils.class_weight import compute_sample_weight
 import json
+import gc
 
 TRAIN_FILES = ["../../LSTM/three_months/feats_new_rule_online/2023_1_3_feats.parquet"]  # Q1 2024
 VAL_FILES   = ["../../LSTM/three_months/feats_new_rule_online/2024_1_3_feats.parquet"]  # Q1 2024
@@ -31,21 +32,37 @@ def add_monthly_and_extract_trainable(df):
     df[TARGET] = df[TARGET].astype(np.int8)
     return df
 
-
-train_df = pd.concat((pd.read_parquet(f, engine="pyarrow") for f in TRAIN_FILES),
-                     ignore_index=True)
-
 val_mmsi_list = list(val_mmsi)
-dfs = []
-for f in VAL_FILES:
-    df_part = pd.read_parquet(
-        f,
-        engine="pyarrow",
-        filters=[("mmsi", "in", val_mmsi_list)]
-    )
-    dfs.append(df_part)
+needed_cols = BASE_FEATURES + ["date_time_utc", TARGET, "sample_weight", "mmsi"]
 
-val_df = pd.concat(dfs, ignore_index=True)
+train_df = pd.concat(
+    [
+        pd.read_parquet(
+            f,
+            engine="pyarrow",
+            columns=needed_cols,
+            filters=[("sample_weight", "=", 1)]
+        )
+        for f in TRAIN_FILES
+    ],
+    ignore_index=True
+)
+
+val_df = pd.concat(
+    [
+        pd.read_parquet(
+            f,
+            engine="pyarrow",
+            columns=needed_cols,
+            filters=[
+                ("mmsi", "in", val_mmsi_list),
+                ("sample_weight", "=", 1),
+            ]
+        )
+        for f in VAL_FILES
+    ],
+    ignore_index=True
+)
 
 train_df = add_monthly_and_extract_trainable(train_df).dropna(subset=[TARGET])
 val_df   = add_monthly_and_extract_trainable(val_df).dropna(subset=[TARGET])
@@ -55,6 +72,9 @@ y_train = train_df[TARGET]
 
 X_val = val_df[FEATURES]
 y_val = val_df[TARGET]
+
+del train_df, val_df
+gc.collect()
 
 # Combine train + val
 X_trainval = pd.concat([X_train, X_val], ignore_index=True)
@@ -94,7 +114,7 @@ xgb_cv = GridSearchCV(
     estimator=xgb,
     param_grid=cv_params,
     scoring=scoring,
-    refit=False,          # or "average_precision" / "recall"
+    refit="f1",          # or "average_precision" / "recall"
     cv=ps,
     n_jobs=1,
     verbose=2,
@@ -103,13 +123,13 @@ xgb_cv = GridSearchCV(
 sample_weight_train = compute_sample_weight(class_weight="balanced", y=y_train)
 sample_weight_all = np.concatenate([
     sample_weight_train,
-    np.ones(len(y_val), dtype=np.float64),   # val rows: only scored, never fit
+    np.ones(len(y_val), dtype=np.float32),
 ])
 
 xgb_cv.fit(
     X_trainval,
     y_trainval,
-    sample_weight=sample_weight_train,
+    sample_weight=sample_weight_all,
 )
 
 print(xgb_cv.best_params_)

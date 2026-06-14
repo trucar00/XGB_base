@@ -5,7 +5,7 @@
 #SBATCH --time=2:00:00
 #SBATCH --nodes=1             # 1 compute nodes
 #SBATCH --cpus-per-task=8     # 2 CPU cores
-#SBATCH --mem=64G             # GB memory
+#SBATCH --mem=100G             # GB memory
 #SBATCH --output=output_xgb_tuning_q1_q1_%j.txt    # Log file
 #SBATCH --mail-user=trulsc00@gmail.com
 #SBATCH --mail-type=ALL
