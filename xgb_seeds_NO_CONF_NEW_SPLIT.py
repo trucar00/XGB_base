@@ -21,7 +21,14 @@ from xgboost import XGBClassifier
 # Config
 # ============================================================
 
-model_path = Path("models/xgb_best_params_no_ra_leak.json")
+
+print("Loading best params")
+with open("xgb_best_params.json", "r") as f:
+    config = json.load(f)
+
+best_params = config["best_params"]
+
+print(best_params)
 # TRAIN: all of 2023
 BASE = "../../three_months/feats_new_rule_online"
 TRAIN_FILES = [
@@ -46,39 +53,26 @@ SEASON_FEATURES = ["month_sin", "month_cos"]
 
 FEATURES = BASE_FEATURES + SEASON_FEATURES
 
-needed_cols = ["mmsi", "date_time_utc", "sample_weight", target] + BASE_FEATURES
+TARGET = "y_train"
 
-print("Loading best params...")
-with open(model_path, "r") as f:
-    best_params = json.load(f)
+needed_cols = ["mmsi", "date_time_utc", "sample_weight", TARGET] + BASE_FEATURES
 
 SEEDS = [0, 1, 2, 3, 4]
 THRESHOLD = 0.5
 
 results_csv_path = "multi_seed_results/xgb_seed_results_NO_CONF_NEW_SPLIT.csv"
 
-# ============================================================
-# MMSI split — FIXED across seeds (rng=42), mirrors LSTM script
-# ============================================================
+def get_val_test_mmsis(test_or_val, path="../../split_mmsis_val_test.csv"):
+    split_df = pd.read_csv(path)
+    return set(split_df.loc[split_df["split"] == test_or_val, "mmsi"])
 
-all_refit_mmsis = set()
-for f in TRAIN_FILES:
-    m = pd.read_parquet(f, columns=["mmsi"], engine="pyarrow")["mmsi"].dropna().unique()
-    all_refit_mmsis.update(m)
-refit_mmsis = np.array(list(all_refit_mmsis))
-split_rng = np.random.default_rng(42)
-split_rng.shuffle(refit_mmsis)
-n = len(refit_mmsis)
-train_mmsi_r = set(refit_mmsis[:int(0.70 * n)])
-val_mmsi_r   = set(refit_mmsis[int(0.70 * n):int(0.85 * n)])
-test_mmsi_r  = set(refit_mmsis[int(0.85 * n):])
+test_mmsis = get_val_test_mmsis(test_or_val="test")
 
 # ============================================================
 # Load and split training data ONCE (seed-independent)
 # ============================================================
-
-train_parts_r, val_parts_r, test_parts_r = [], [], []
-for f in train_files:
+train_parts = []
+for f in TRAIN_FILES:
     print("Reading", f)
     tmp = pd.read_parquet(f, columns=needed_cols, engine="pyarrow")
     tmp["sample_weight"] = 1
@@ -88,28 +82,50 @@ for f in train_files:
     tmp["month_sin"] = np.sin(2 * np.pi * month / 12)
     tmp["month_cos"] = np.cos(2 * np.pi * month / 12)
     tmp[BASE_FEATURES] = tmp[BASE_FEATURES].astype(np.float32)
-    tmp["month_sin"]   = tmp["month_sin"].astype(np.float32)
-    tmp["month_cos"]   = tmp["month_cos"].astype(np.float32)
-    tmp[target]        = tmp[target].astype(np.int8)
-    train_parts_r.append(tmp[tmp["mmsi"].isin(train_mmsi_r)].copy())
-    val_parts_r.append(  tmp[tmp["mmsi"].isin(val_mmsi_r)].copy())
-    test_parts_r.append( tmp[tmp["mmsi"].isin(test_mmsi_r)].copy())
+    tmp["month_sin"] = tmp["month_sin"].astype(np.float32)
+    tmp["month_cos"] = tmp["month_cos"].astype(np.float32)
+    tmp[TARGET] = tmp[TARGET].astype(np.int8)
+    train_parts.append(tmp)
     del tmp
     gc.collect()
 
-train_df_r = pd.concat(train_parts_r, ignore_index=True).dropna(subset=[target]).copy()
-test_df_r  = pd.concat(test_parts_r,  ignore_index=True).dropna(subset=[target]).copy()
+def get_val_test_parts(files, mmsis):
+    parts_r = []
+    for f in files:
+        print("Reading", f)
+        tmp = pd.read_parquet(f, columns=needed_cols, engine="pyarrow")
+        tmp["sample_weight"] = 1
+        tmp = tmp[tmp["sample_weight"] == 1].copy()
+        tmp["date_time_utc"] = pd.to_datetime(tmp["date_time_utc"])
+        month = tmp["date_time_utc"].dt.month
+        tmp["month_sin"] = np.sin(2 * np.pi * month / 12)
+        tmp["month_cos"] = np.cos(2 * np.pi * month / 12)
+        tmp[BASE_FEATURES] = tmp[BASE_FEATURES].astype(np.float32)
+        tmp["month_sin"]   = tmp["month_sin"].astype(np.float32)
+        tmp["month_cos"]   = tmp["month_cos"].astype(np.float32)
+        tmp[TARGET]        = tmp[TARGET].astype(np.int8)
+        parts_r.append(tmp[tmp["mmsi"].isin(mmsis)].copy())
+        del tmp
+        gc.collect()
+    return parts_r
 
-X_train_r = train_df_r[FEATURES]
-y_train_r = train_df_r[target].astype(int)
-X_test_r  = test_df_r[FEATURES]
-y_test_r  = test_df_r[target].astype(int)
+test_parts = get_val_test_parts(VAL_TEST_FILES, test_mmsis)
+train_df = pd.concat(train_parts, ignore_index=True).dropna(subset=[TARGET])
+test_df  = pd.concat(test_parts,  ignore_index=True).dropna(subset=[TARGET])
+
+X_train = train_df[FEATURES]
+y_train = train_df[TARGET].astype(int)
+X_test  = test_df[FEATURES]
+y_test  = test_df[TARGET].astype(int)
+
+del test_parts, train_df, test_df
+gc.collect()
 
 # Sample weights are deterministic given y_train_r — compute once.
-sample_weight_train_r = compute_sample_weight(class_weight="balanced", y=y_train_r)
+sample_weight_train = compute_sample_weight(class_weight="balanced", y=y_train)
 
-neg_train = int((y_train_r == 0).sum())
-pos_train = int((y_train_r == 1).sum())
+neg_train = int((y_train == 0).sum())
+pos_train = int((y_train == 1).sum())
 pos_weight_value = neg_train / max(pos_train, 1)
 print(f"pos_weight (for LSTM-comparable ext_logloss): {pos_weight_value:.4f}")
 
@@ -131,7 +147,7 @@ df_2025["sample_weight"] = 1
 # ============================================================
 
 def predict_and_score_external(model, df_in, threshold=THRESHOLD, pos_weight_value=1.0):
-    df = df_in.copy()
+    df = df_in
     proba = model.predict_proba(df[FEATURES])[:, 1]
     df["pred_proba"] = proba
     df["pred_fishing"] = (proba >= threshold).astype(int)
