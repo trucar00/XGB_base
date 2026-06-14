@@ -22,7 +22,7 @@ with open("xgb_best_params.json", "r") as f:
 best_params = config["best_params"]
 print(best_params)
  
-BASE = "../../three_months/feats_new_rule_online"
+BASE = "../../LSTM/three_months/feats_new_rule_online"
  
 # TRAIN: all of 2023
 TRAIN_FILES = [
