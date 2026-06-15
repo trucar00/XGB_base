@@ -2,12 +2,12 @@
 #SBATCH --account=share-ie-itk
 #SBATCH --partition=GPUQ
 #SBATCH --gres=gpu:1
-#SBATCH --time=3:00:00
+#SBATCH --time=8:00:00
 #SBATCH --nodes=1             # 1 compute nodes
 #SBATCH --cpus-per-task=8     # 2 CPU cores
-#SBATCH --mem=64G             # GB memory
-#SBATCH --output=output_xgb_tune_2023_val_test_excluded%j.txt    # Log file
-#SBATCH --job-name=xgb_tune_final
+#SBATCH --mem=128G             # GB memory
+#SBATCH --output=multi_seed_final/output_xgb_seed_%j.txt    # Log file
+#SBATCH --job-name=xgb_seed_final
 #SBATCH --mail-user=trulsc00@gmail.com
 #SBATCH --mail-type=ALL
 
@@ -37,4 +37,4 @@ EOF
 nvidia-smi
 
 # Run your script
-python -u xgb_tune_final.py
+python -u xgb_seeds.py
