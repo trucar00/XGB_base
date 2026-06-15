@@ -15,6 +15,7 @@ from sklearn.metrics import (
 )
 from sklearn.utils.class_weight import compute_sample_weight
 from xgboost import XGBClassifier
+import random
 
 print("Loading best params")
 with open("xgb_best_params.json", "r") as f:
@@ -23,6 +24,8 @@ best_params = config["best_params"]
 print(best_params)
  
 BASE = "../../LSTM/three_months/feats_new_rule_online"
+
+CONF = False
  
 # TRAIN: all of 2023
 TRAIN_FILES = [
@@ -33,7 +36,7 @@ TRAIN_FILES = [
 ]
  
 # TEST: the held-out *test* vessels, in 2024
-TEST_FILES = [
+VAL_TEST_FILES = [
     f"{BASE}/2024_1_3_feats.parquet",     # Q1 2024
     f"{BASE}/2024_4_6_feats.parquet",     # Q2 2024
     f"{BASE}/2024_7_9_feats.parquet",     # Q3 2024
@@ -51,17 +54,31 @@ needed_cols = ["mmsi", "date_time_utc", "sample_weight", TARGET] + BASE_FEATURES
 SEEDS = [0, 1, 2, 3, 4]
 THRESHOLD = 0.5
 
-results_csv_path = "multi_seed_results/xgb_train2023_test2024.csv"
-summary_csv_path = "multi_seed_results/xgb_train2023_test2024_summary.csv"
+results_csv_path = "multi_seed_final/xgb_train2023_test2024.csv"
+summary_csv_path = "multi_seed_final/xgb_train2023_test2024_summary.csv"
 
-def get_split_mmsis(which, path="../../split_mmsis_val_test.csv"):
+def all_mmsis_in(files):
+    s = set()
+    for f in files:
+        s.update(pd.read_parquet(f, columns=["mmsi"])["mmsi"].unique())
+    return s
+
+def get_global_val_test_mmsis(which, path="../train_val_test_mmsis.csv"):
     split_df = pd.read_csv(path)
+    split_df["mmsi"] = split_df["mmsi"].astype("int64")
     return set(split_df.loc[split_df["split"] == which, "mmsi"])
  
-test_mmsis = get_split_mmsis("test")
-print(f"nr of test vessels: {len(test_mmsis)}")
+# All vessels in each quarter (no MMSI split -- the split is by TIME).
+val_mmsis = get_global_val_test_mmsis(which="validation")
+test_mmsis = get_global_val_test_mmsis(which="test")
+all_mmsis_in_train = all_mmsis_in(TRAIN_FILES)
+train_mmsis = all_mmsis_in_train - val_mmsis - test_mmsis
+assert train_mmsis.isdisjoint(val_mmsis), "Train/val MMSIs overlap!"
+assert train_mmsis.isdisjoint(test_mmsis), "Train/test MMSIs overlap!"
+print(f"Train (all 2023) vessels: {len(train_mmsis)} | Val (2024) vessels: {len(val_mmsis)} | Test (2024) vessels: {len(test_mmsis)}")
 
-def load_feats(files, mmsi_keep=None, no_conf=True):
+
+def load_feats(files, no_conf, mmsi_keep=None):
     """Read feature parquets, build season features, optionally filter by mmsi.
  
     labeled_only=True keeps only sample_weight == 1 rows, i.e. confident
@@ -93,10 +110,12 @@ def load_feats(files, mmsi_keep=None, no_conf=True):
     return pd.concat(parts, ignore_index=True)
 
 print("\nLoading TRAIN (2023)...")
-train_df = load_feats(TRAIN_FILES)
+train_df = load_feats(TRAIN_FILES, no_conf=CONF, mmsi_keep=train_mmsis)
 
 print("\nLoading TEST (2024, test vessels)...")
-test_df = load_feats(TEST_FILES, mmsi_keep=test_mmsis)
+random.seed(42)
+train_mmsi_list = random.sample(sorted(train_mmsis), k=len(train_mmsis) // 2)
+test_df = load_feats(VAL_TEST_FILES, no_conf=CONF, mmsi_keep=test_mmsis) # UNSEEN VESSELS TEST, change to train_mmsis if we want SEEN vessels
  
 X_train = train_df[FEATURES]
 y_train = train_df[TARGET].astype(int)

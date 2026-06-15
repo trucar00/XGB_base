@@ -1,12 +1,13 @@
 #!/bin/bash
-#SBATCH --account=share-ie-idi
+#SBATCH --account=share-ie-itk
 #SBATCH --partition=CPUQ
 ##SBATCH --gres=gpu:1
-#SBATCH --time=4:00:00
+#SBATCH --time=3:00:00
 #SBATCH --nodes=1             # 1 compute nodes
 #SBATCH --cpus-per-task=8     # 2 CPU cores
-#SBATCH --mem=100G             # GB memory
+#SBATCH --mem=64G             # GB memory
 #SBATCH --output=output_xgb_tune_2023_val_test_excluded%j.txt    # Log file
+#SBATCH --job-name=xgb_tune_final
 #SBATCH --mail-user=trulsc00@gmail.com
 #SBATCH --mail-type=ALL
 
