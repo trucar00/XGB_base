@@ -26,7 +26,7 @@ def all_mmsis_in(files):
         s.update(mmsis.unique())
     return s
 
-def get_global_val_test_mmsis(which, path="../train_val_test_mmsis.csv"):
+def get_global_val_test_mmsis(which, path="../../train_val_test_mmsis.csv"):
     split_df = pd.read_csv(path)
     split_df["mmsi"] = split_df["mmsi"].astype("int64")
     mmsis = set(split_df.loc[split_df["split"] == which,"mmsi"])
