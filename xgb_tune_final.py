@@ -6,7 +6,8 @@ from sklearn.utils.class_weight import compute_sample_weight
 import json
 import gc
 
-TUNING_FILES = ["three_months/feats_new_rule_bilstm/2023_1_3_feats.parquet", "three_months/feats_new_rule_bilstm/2023_7_9_feats.parquet"]  # Q1/Q3 2023
+BASE = "../../LSTM/three_months/feats_new_rule_bilstm/"
+TUNING_FILES = [f"{BASE}2023_1_3_feats.parquet", f"{BASE}2023_7_9_feats.parquet"]  # Q1/Q3 2023
 
 BASE_FEATURES = ["cog_sin", "cog_cos", "speed_calc_ms", "ra_accel", "ra_jerk", "log_dist", "ra_dcog", "log_dt"]
 
