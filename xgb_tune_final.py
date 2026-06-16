@@ -27,7 +27,7 @@ def all_mmsis_in(files):
         s.update(mmsis.unique())
     return s
 
-def get_global_val_test_mmsis(which, path="../../train_val_test_mmsis.csv"):
+def get_global_val_test_mmsis(which, path="../../train_val_test_mmsis_FINAL.csv"):
     split_df = pd.read_csv(path)
     split_df["mmsi"] = split_df["mmsi"].astype("int64")
     mmsis = set(split_df.loc[split_df["split"] == which,"mmsi"])
@@ -121,10 +121,10 @@ test_fold = [-1] * len(X_train) + [0] * len(X_val)
 ps = PredefinedSplit(test_fold)
 
 cv_params = {
-    "max_depth": [4, 6],
-    "min_child_weight": [3],
+    "max_depth": [3, 5, 7],
+    "min_child_weight": [1, 5],
     "learning_rate": [0.05, 0.1],
-    "n_estimators": [300],
+    "n_estimators": [200, 500],
     "subsample": [0.8],
     "colsample_bytree": [0.8],
 }
