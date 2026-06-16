@@ -145,6 +145,8 @@ gc.collect()
 sample_weight_train = compute_sample_weight(class_weight="balanced", y=y_train)
 
 
+
+
 done_seeds = set()
 all_results = []
 if os.path.exists(results_csv_path):
@@ -196,6 +198,7 @@ for seed in SEEDS:
     logloss_unseen   = log_loss(y_test_unseen, y_prob_unseen)
     rocauc_unseen    = roc_auc_score(y_test_unseen, y_prob_unseen)
     prauc_unseen     = average_precision_score(y_test_unseen, y_prob_unseen)
+    specificity_unseen = recall_score(y_test_unseen, y_pred_unseen, pos_label=0)
 
     precision_seen = precision_score(y_test_seen, y_pred_seen)
     recall_seen    = recall_score(y_test_seen, y_pred_seen)
@@ -204,6 +207,7 @@ for seed in SEEDS:
     logloss_seen   = log_loss(y_test_seen, y_prob_seen)
     rocauc_seen    = roc_auc_score(y_test_seen, y_prob_seen)
     prauc_seen     = average_precision_score(y_test_seen, y_prob_seen)
+    specificity_seen   = recall_score(y_test_seen,   y_pred_seen,   pos_label=0)
  
     print(f"[seed {seed}] TEST UNSEEN 2024 | "
           f"p {precision_unseen:.3f} r {recall_unseen:.3f} f1 {f1_unseen:.3f} "
@@ -247,10 +251,10 @@ df_res = pd.DataFrame(all_results)
 print("\n========== SUMMARY ==========")
 print(df_res.to_string(index=False))
  
-metric_cols = ["f1_unseen", "precision_unseen", "recall_unseen", "accuracy_unseen",
-               "logloss_unseen", "rocauc_unseen", "prauc_unseen", 
-               "f1_seen", "precision_seen", "recall_seen", "accuracy_seen",
-               "logloss_seen", "rocauc_seen", "prauc_seen",]
+metric_cols = ["f1_unseen", "precision_unseen", "recall_unseen", "specificity_unseen",
+               "accuracy_unseen", "logloss_unseen", "rocauc_unseen", "prauc_unseen",
+               "f1_seen", "precision_seen", "recall_seen", "specificity_seen",
+               "accuracy_seen", "logloss_seen", "rocauc_seen", "prauc_seen"]
 summary = df_res[metric_cols].agg(["mean", "std"]).T
 summary.columns = ["mean", "std"]
 print("\nMean / Std across seeds:")
