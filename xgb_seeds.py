@@ -208,14 +208,14 @@ for seed in SEEDS:
     specificity_seen   = recall_score(y_test_seen,   y_pred_seen,   pos_label=0)
  
     print(f"[seed {seed}] TEST UNSEEN 2024 | "
-          f"p {precision_unseen:.3f} r {recall_unseen:.3f} f1 {f1_unseen:.3f} "
-          f"acc {accuracy_unseen:.3f} logloss {logloss_unseen:.4f} "
-          f"rocauc {rocauc_unseen:.3f} prauc {prauc_unseen:.3f}")
+          f"p {precision_unseen:.4f} r {recall_unseen:.4f} f1 {f1_unseen:.4f} "
+          f"acc {accuracy_unseen:.4f} logloss {logloss_unseen:.4f} "
+          f"rocauc {rocauc_unseen:.4f} prauc {prauc_unseen:.4f} spec: {specificity_unseen:.4f}")
     
     print(f"[seed {seed}] TEST SEEN 2024 | "
           f"p {precision_seen:.3f} r {recall_seen:.3f} f1 {f1_seen:.3f} "
           f"acc {accuracy_seen:.3f} logloss {logloss_seen:.4f} "
-          f"rocauc {rocauc_seen:.3f} prauc {prauc_seen:.3f}")
+          f"rocauc {rocauc_seen:.3f} prauc {prauc_seen:.3f} spec: {specificity_seen:.4f}")
  
     all_results.append({
         "seed":      seed,
@@ -227,6 +227,7 @@ for seed in SEEDS:
         "logloss_unseen":   logloss_unseen,
         "rocauc_unseen":    rocauc_unseen,
         "prauc_unseen":     prauc_unseen,
+        "specificity_unseen": specificity_unseen,
    
         "precision_seen": precision_seen,
         "recall_seen":    recall_seen,
@@ -235,6 +236,7 @@ for seed in SEEDS:
         "logloss_seen":   logloss_seen,
         "rocauc_seen":    rocauc_seen,
         "prauc_seen":     prauc_seen,
+        "specificity_seen": specificity_seen,
     })
  
     # Save incrementally so a crash doesn't lose everything.
