@@ -24,7 +24,7 @@ print(best_params)
  
 BASE = "../../LSTM/three_months/feats_new_rule_online"
 
-USE_CONF_LABELS = False
+USE_CONF_LABELS = True
  
 # TRAIN: all of 2023
 TRAIN_FILES = [
@@ -99,10 +99,10 @@ def load_feats(files, use_conf, mmsi_keep=None):
         if mmsi_keep is not None:
             tmp["mmsi"] = tmp["mmsi"].astype("int64")
             tmp = tmp[tmp["mmsi"].isin(mmsi_keep)]
-        if not use_conf:
+
+        if use_conf:
             tmp = tmp[tmp["sample_weight"] == 1]
 
-        tmp = tmp[tmp["sample_weight"] == 1]
         tmp = tmp.dropna(subset=[TARGET])
  
         tmp["date_time_utc"] = pd.to_datetime(tmp["date_time_utc"])
@@ -143,8 +143,6 @@ del train_df, test_unseen_df, test_seen_df
 gc.collect()
 
 sample_weight_train = compute_sample_weight(class_weight="balanced", y=y_train)
-
-
 
 
 done_seeds = set()
