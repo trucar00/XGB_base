@@ -24,7 +24,7 @@ print(best_params)
  
 BASE = "../../LSTM/three_months/feats_new_rule_online"
 
-USE_CONF_LABELS = True
+USE_CONF_LABELS = False
  
 # TRAIN: all of 2023
 TRAIN_FILES = [
@@ -54,11 +54,11 @@ SEEDS = [0, 1, 2, 3, 4]
 THRESHOLD = 0.5
 
 OUTPUT_DIR = "multi_seed_final"
-results_csv_path = f"{OUTPUT_DIR}/xgb_train2023_test2024_unseen_no_conf_final.csv"
-summary_csv_path = f"{OUTPUT_DIR}/xgb_train2023_test2024_unseen_summary_no_conf_final.csv"
+results_csv_path = f"{OUTPUT_DIR}/xgb_train2023_test2024_unseen_NO_CONF_final.csv"
+summary_csv_path = f"{OUTPUT_DIR}/xgb_train2023_test2024_unseen_summary_NO_CONF_final.csv"
 
-importance_all_path = f"{OUTPUT_DIR}/xgb_feature_importance_all_seeds_final.csv"
-importance_summary_path = f"{OUTPUT_DIR}/xgb_feature_importance_summary_final.csv"
+importance_all_path = f"{OUTPUT_DIR}/xgb_feature_importance_all_seeds_final_NO_CONF.csv"
+importance_summary_path = f"{OUTPUT_DIR}/xgb_feature_importance_summary_final_NO_CONF.csv"
 
 def all_mmsis_in(files):
     s = set()
@@ -120,11 +120,14 @@ def load_feats(files, use_conf, mmsi_keep=None):
 print("\nLoading TRAIN (2023)...")
 train_df = load_feats(TRAIN_FILES, use_conf=USE_CONF_LABELS, mmsi_keep=train_mmsis)
 
-print("\nLoading TEST (2024, test vessels)...")
+print("\nLoading TEST (2024, test seen vessels)...")
 random.seed(42)
 train_mmsi_list_for_testing = random.sample(sorted(train_mmsis), k=len(train_mmsis) // 2)
-test_unseen_df = load_feats(VAL_TEST_FILES, use_conf=USE_CONF_LABELS, mmsi_keep=test_mmsis) # UNSEEN VESSELS TEST, change to train_mmsis if we want SEEN vessels
 test_seen_df = load_feats(VAL_TEST_FILES, use_conf=USE_CONF_LABELS, mmsi_keep=train_mmsi_list_for_testing) # SEEN VESSELS TEST, change to train_mmsis if we want SEEN vessels
+
+print("\nLoading TEST (2024, test unseen vessels)...")
+test_unseen_df = load_feats(VAL_TEST_FILES, use_conf=USE_CONF_LABELS, mmsi_keep=test_mmsis) # UNSEEN VESSELS TEST, change to train_mmsis if we want SEEN vessels
+
  
 X_train = train_df[FEATURES]
 y_train = train_df[TARGET].astype(int)
@@ -180,7 +183,7 @@ for seed in SEEDS:
     }).sort_values("importance", ascending=False)
 
     importance_df.to_csv(
-        f"{OUTPUT_DIR}/xgb_feature_importance_seed_{seed}.csv",
+        f"{OUTPUT_DIR}/xgb_feature_importance_seed_{seed}_NO_CONF.csv",
         index=False,
     )
 
