@@ -68,7 +68,7 @@ def all_mmsis_in(files):
         s.update(mmsis.unique())
     return s
 
-def get_global_val_test_mmsis(which, path="../train_val_test_mmsis_FINAL.csv"):
+def get_global_val_test_mmsis(which, path="../../train_val_test_mmsis_FINAL.csv"):
     split_df = pd.read_csv(path)
     split_df["mmsi"] = split_df["mmsi"].astype("int64")
     mmsis = set(split_df.loc[split_df["split"] == which,"mmsi"])
@@ -84,7 +84,7 @@ assert train_mmsis.isdisjoint(test_mmsis), "Train/test MMSIs overlap!"
 print(f"Train (all 2023) vessels: {len(train_mmsis)} | Val (2024) vessels: {len(val_mmsis)} | Test (2024) vessels: {len(test_mmsis)}")
 
 
-def load_feats(files, no_conf, mmsi_keep=None):
+def load_feats(files, use_conf, mmsi_keep=None):
     """Read feature parquets, build season features, optionally filter by mmsi.
  
     labeled_only=True keeps only sample_weight == 1 rows, i.e. confident
@@ -99,9 +99,10 @@ def load_feats(files, no_conf, mmsi_keep=None):
         if mmsi_keep is not None:
             tmp["mmsi"] = tmp["mmsi"].astype("int64")
             tmp = tmp[tmp["mmsi"].isin(mmsi_keep)]
-        if not no_conf:
+        if not use_conf:
             tmp = tmp[tmp["sample_weight"] == 1]
- 
+
+        tmp = tmp[tmp["sample_weight"] == 1]
         tmp = tmp.dropna(subset=[TARGET])
  
         tmp["date_time_utc"] = pd.to_datetime(tmp["date_time_utc"])
@@ -117,13 +118,13 @@ def load_feats(files, no_conf, mmsi_keep=None):
     return pd.concat(parts, ignore_index=True)
 
 print("\nLoading TRAIN (2023)...")
-train_df = load_feats(TRAIN_FILES, no_conf=USE_CONF_LABELS, mmsi_keep=train_mmsis)
+train_df = load_feats(TRAIN_FILES, use_conf=USE_CONF_LABELS, mmsi_keep=train_mmsis)
 
 print("\nLoading TEST (2024, test vessels)...")
 random.seed(42)
 train_mmsi_list_for_testing = random.sample(sorted(train_mmsis), k=len(train_mmsis) // 2)
-test_unseen_df = load_feats(VAL_TEST_FILES, no_conf=USE_CONF_LABELS, mmsi_keep=test_mmsis) # UNSEEN VESSELS TEST, change to train_mmsis if we want SEEN vessels
-test_seen_df = load_feats(VAL_TEST_FILES, no_conf=USE_CONF_LABELS, mmsi_keep=train_mmsi_list_for_testing) # SEEN VESSELS TEST, change to train_mmsis if we want SEEN vessels
+test_unseen_df = load_feats(VAL_TEST_FILES, use_conf=USE_CONF_LABELS, mmsi_keep=test_mmsis) # UNSEEN VESSELS TEST, change to train_mmsis if we want SEEN vessels
+test_seen_df = load_feats(VAL_TEST_FILES, use_conf=USE_CONF_LABELS, mmsi_keep=train_mmsi_list_for_testing) # SEEN VESSELS TEST, change to train_mmsis if we want SEEN vessels
  
 X_train = train_df[FEATURES]
 y_train = train_df[TARGET].astype(int)
