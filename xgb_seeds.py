@@ -1,7 +1,6 @@
 import os
 import json
 import gc
- 
 import numpy as np
 import pandas as pd
 from sklearn.metrics import (
@@ -55,23 +54,25 @@ SEEDS = [0, 1, 2, 3, 4]
 THRESHOLD = 0.5
 
 OUTPUT_DIR = "multi_seed_final"
-results_csv_path = f"{OUTPUT_DIR}/xgb_train2023_test2024_unseen_no_conf.csv"
-summary_csv_path = f"{OUTPUT_DIR}/xgb_train2023_test2024_unseen_summary_no_conf.csv"
+results_csv_path = f"{OUTPUT_DIR}/xgb_train2023_test2024_unseen_no_conf_final.csv"
+summary_csv_path = f"{OUTPUT_DIR}/xgb_train2023_test2024_unseen_summary_no_conf_final.csv"
 
-importance_all_path = f"{OUTPUT_DIR}/xgb_feature_importance_all_seeds.csv"
-importance_summary_path = f"{OUTPUT_DIR}/xgb_feature_importance_summary.csv"
-importance_plot_path = f"{OUTPUT_DIR}/xgb_feature_importance_gain.png"
+importance_all_path = f"{OUTPUT_DIR}/xgb_feature_importance_all_seeds_final.csv"
+importance_summary_path = f"{OUTPUT_DIR}/xgb_feature_importance_summary_final.csv"
 
 def all_mmsis_in(files):
     s = set()
     for f in files:
-        s.update(pd.read_parquet(f, columns=["mmsi"])["mmsi"].unique())
+        mmsis = pd.read_parquet(f, columns=["mmsi"])["mmsi"]
+        mmsis = pd.to_numeric(mmsis, errors="coerce").dropna().astype("int64")
+        s.update(mmsis.unique())
     return s
 
-def get_global_val_test_mmsis(which, path="../../train_val_test_mmsis_FINAL.csv"):
+def get_global_val_test_mmsis(which, path="../train_val_test_mmsis_FINAL.csv"):
     split_df = pd.read_csv(path)
     split_df["mmsi"] = split_df["mmsi"].astype("int64")
-    return set(split_df.loc[split_df["split"] == which, "mmsi"])
+    mmsis = set(split_df.loc[split_df["split"] == which,"mmsi"])
+    return mmsis
  
 # All vessels in each quarter (no MMSI split -- the split is by TIME).
 val_mmsis = get_global_val_test_mmsis(which="validation")
@@ -96,6 +97,7 @@ def load_feats(files, no_conf, mmsi_keep=None):
         tmp = pd.read_parquet(f, columns=needed_cols, engine="pyarrow")
  
         if mmsi_keep is not None:
+            tmp["mmsi"] = tmp["mmsi"].astype("int64")
             tmp = tmp[tmp["mmsi"].isin(mmsi_keep)]
         if not no_conf:
             tmp = tmp[tmp["sample_weight"] == 1]

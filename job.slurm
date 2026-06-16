@@ -6,8 +6,8 @@
 #SBATCH --nodes=1             # 1 compute nodes
 #SBATCH --cpus-per-task=8     # 2 CPU cores
 #SBATCH --mem=128G             # GB memory
-#SBATCH --output=output_xgb_TUNE_FINAL_%j.txt    # Log file
-#SBATCH --job-name=xgb_tune_final
+#SBATCH --output=output_xgb_seed_FINAL_%j.txt    # Log file
+#SBATCH --job-name=xgb_seeds_final
 #SBATCH --mail-user=trulsc00@gmail.com
 #SBATCH --mail-type=ALL
 
@@ -37,4 +37,4 @@ EOF
 nvidia-smi
 
 # Run your script
-python -u xgb_tune_final.py
+python -u xgb_seeds.py
