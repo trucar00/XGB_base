@@ -68,6 +68,7 @@ def add_monthly_and_extract_trainable(df):
     df[TARGET] = df[TARGET].astype(np.int8)
     return df
 
+train_mmsi_list = list(train_mmsis)
 val_mmsi_list = list(val_mmsis)
 needed_cols = BASE_FEATURES + ["date_time_utc", TARGET, "sample_weight", "mmsi"]
 
@@ -77,7 +78,7 @@ train_df = pd.concat(
             f,
             engine="pyarrow",
             columns=needed_cols,
-            filters=[("sample_weight", "=", 1)]
+            filters=[("mmsi", "in", train_mmsi_list), ("sample_weight", "=", 1)]
         )
         for f in TUNING_FILES
     ],
@@ -99,6 +100,22 @@ val_df = pd.concat(
     ],
     ignore_index=True
 )
+
+loaded_train_mmsis = set(
+    pd.to_numeric(train_df["mmsi"], errors="coerce").dropna().astype("int64")
+)
+loaded_val_mmsis = set(
+    pd.to_numeric(val_df["mmsi"], errors="coerce").dropna().astype("int64")
+)
+
+assert loaded_train_mmsis <= train_mmsis
+assert loaded_val_mmsis <= val_mmsis
+assert loaded_train_mmsis.isdisjoint(loaded_val_mmsis)
+
+assert loaded_train_mmsis.isdisjoint(GLOB_val_mmsis)
+assert loaded_train_mmsis.isdisjoint(GLOB_test_mmsis)
+assert loaded_val_mmsis.isdisjoint(GLOB_val_mmsis)
+assert loaded_val_mmsis.isdisjoint(GLOB_test_mmsis)
 
 train_df = add_monthly_and_extract_trainable(train_df).dropna(subset=[TARGET])
 val_df   = add_monthly_and_extract_trainable(val_df).dropna(subset=[TARGET])
