@@ -54,8 +54,8 @@ SEEDS = [0, 1, 2, 3, 4]
 THRESHOLD = 0.5
 
 OUTPUT_DIR = "multi_seed_final"
-results_csv_path = f"{OUTPUT_DIR}/xgb_train2023_test2024_unseen_NO_CONF_final.csv"
-summary_csv_path = f"{OUTPUT_DIR}/xgb_train2023_test2024_unseen_summary_NO_CONF_final.csv"
+results_csv_path = f"{OUTPUT_DIR}/xgb_train2023_test2024_NO_CONF_FINAL.csv"
+summary_csv_path = f"{OUTPUT_DIR}/xgb_train2023_test2024_summary_NO_CONF_FINAL.csv"
 
 importance_all_path = f"{OUTPUT_DIR}/xgb_feature_importance_all_seeds_final_NO_CONF.csv"
 importance_summary_path = f"{OUTPUT_DIR}/xgb_feature_importance_summary_final_NO_CONF.csv"
@@ -122,7 +122,7 @@ train_df = load_feats(TRAIN_FILES, use_conf=USE_CONF_LABELS, mmsi_keep=train_mms
 
 print("\nLoading TEST (2024, test seen vessels)...")
 random.seed(42)
-train_mmsi_list_for_testing = random.sample(sorted(train_mmsis), k=len(train_mmsis) // 2)
+train_mmsi_list_for_testing = random.sample(sorted(train_mmsis), k=len(train_mmsis)) # POTENTIAL CHANGE TO 4 if need be. 
 test_seen_df = load_feats(VAL_TEST_FILES, use_conf=USE_CONF_LABELS, mmsi_keep=train_mmsi_list_for_testing) # SEEN VESSELS TEST, change to train_mmsis if we want SEEN vessels
 
 print("\nLoading TEST (2024, test unseen vessels)...")
@@ -182,15 +182,25 @@ for seed in SEEDS:
         "importance": final_xgb.feature_importances_,
     }).sort_values("importance", ascending=False)
 
-    importance_df.to_csv(
-        f"{OUTPUT_DIR}/xgb_feature_importance_seed_{seed}_NO_CONF.csv",
-        index=False,
-    )
+    #importance_df.to_csv(
+    #    f"{OUTPUT_DIR}/xgb_feature_importance_seed_{seed}_NO_CONF.csv",
+    #    index=False,
+    #)
 
     y_pred_unseen = final_xgb.predict(X_test_unseen)
     y_prob_unseen = final_xgb.predict_proba(X_test_unseen)[:, 1]
     y_pred_seen = final_xgb.predict(X_test_seen)
     y_prob_seen = final_xgb.predict_proba(X_test_seen)[:, 1]
+
+    #tp_seen
+    #tn_seen
+    #fp_seen
+    #fn_seen
+
+    #tp_unseen
+    #tn_unseen
+    #fp_unseen
+    #fn_unseen
  
     precision_unseen = precision_score(y_test_unseen, y_pred_unseen)
     recall_unseen    = recall_score(y_test_unseen, y_pred_unseen)
